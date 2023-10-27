@@ -119,6 +119,15 @@ struct proc
   uint rtime;                  // How long the process ran for
   uint ctime;                  // When was the process created
   uint etime;                  // When did the process exited
+
+  #ifdef PBS
+  int pbs_sp;
+  int pbs_rtime;
+  int pbs_stime;
+  int pbs_wtime;
+  int pbs_dp;
+  #endif
+
 };
 
 extern struct proc proc[NPROC];

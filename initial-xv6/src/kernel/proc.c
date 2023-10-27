@@ -152,6 +152,12 @@ found:
   p->rtime = 0;
   p->etime = 0;
   p->ctime = ticks;
+  #ifdef PBS
+  p->pbs_sp = 50;
+  p->pbs_rtime = 0;
+  p->pbs_stime = 0;
+  p->pbs_wtime = 0;
+  #endif
   return p;
 }
 
@@ -451,6 +457,34 @@ int wait(uint64 addr)
   }
 }
 
+int max(int a, int b)
+{
+  if (a > b)
+    return a;
+  return b;
+}
+
+#ifdef PBS
+
+int cmpfunc(uint64* min_dp, struct proc *p)
+{
+  // int I = max(3 * R * Time - STime - WTime * R * Time + WTime + STime + 1 * 50, 0);
+  int rbi = max(( 3*p->pbs_rtime - p->pbs_stime - p->pbs_wtime )*50/(p->pbs_rtime + p->pbs_stime + p->pbs_wtime), 0);
+  if(*min_dp == -1)
+  {
+    *min_dp = rbi;
+    return 1;
+  }
+  if(rbi < *min_dp)
+  {
+    *min_dp = rbi;
+    return 1;
+  }
+  return 0;
+} 
+
+#endif
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -468,6 +502,36 @@ void scheduler(void)
   {
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
+
+    #ifdef PBS
+    struct proc *pbs_proc = 0;
+    struct proc *prev_proc = 0;
+    uint64 min_dp = -1;
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE && cmpfunc(&min_dp, p) == 1)
+      {
+        prev_proc = pbs_proc;
+        pbs_proc = p;
+        if(prev_proc!=0)
+          release(&pbs_proc->lock);
+      }
+      else
+        release(&p->lock);
+    } 
+
+    if(pbs_proc!=0)
+    {
+      pbs_proc->state = RUNNING;
+      c->proc = pbs_proc;
+      swtch(&c->context, &pbs_proc->context);
+      c->proc = 0;
+      release(&pbs_proc->lock);
+    }
+    #endif
+
+    #ifdef ROUNDROBIN
 
     for (p = proc; p < &proc[NPROC]; p++)
     {
@@ -487,6 +551,8 @@ void scheduler(void)
       }
       release(&p->lock);
     }
+
+    #endif
   }
 }
 
@@ -766,8 +832,21 @@ void update_time()
     acquire(&p->lock);
     if (p->state == RUNNING)
     {
+      #ifdef PBS
+      p->pbs_rtime++;
+      #endif
       p->rtime++;
     }
+    #ifdef PBS
+    else if(p->state == SLEEPING)
+    {
+      p->pbs_stime++;
+    }
+    else if(p->state == RUNNABLE)
+    {
+      p->pbs_wtime++;
+    }
+    #endif
     release(&p->lock);
   }
 }

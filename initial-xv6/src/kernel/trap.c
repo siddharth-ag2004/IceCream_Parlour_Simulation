@@ -79,8 +79,10 @@ void usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
+  #ifdef ROUNDROBIN
   if (which_dev == 2)
     yield();
+  #endif
 
   usertrapret();
 }
