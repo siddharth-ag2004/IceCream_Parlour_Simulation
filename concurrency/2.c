@@ -164,7 +164,8 @@ void *customer_func(void *arg)
     // customer[cust_inthread] has_arrived = 1;
     if(curr_capacity==K)
     {
-        printf("Customer %d was not serviced due to shop being full\n", cust_inthread->index);
+        total_customers_left++;
+        printf(RED "Customer %d was not serviced due to shop being full\n" RESET, cust_inthread->index);
         return NULL;
     }
 
