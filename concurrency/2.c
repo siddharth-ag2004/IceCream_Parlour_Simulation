@@ -43,6 +43,7 @@ typedef struct Icecream
     Topping with_topping[100];
     int being_prepared;
     int is_served;
+    int entered_new_func;
 } Icecream;
 
 typedef struct Customer
@@ -112,9 +113,9 @@ int enough_toppings(Customer cust_i)
     {
         if (used_topping[i] > topping[i].q_t)
         {
-            for(int i=0;i<T;i++)
+            for(int p=0;p<T;p++)
             {
-                used_topping[i]=0;
+                used_topping[p]=0;
             }
             return 0;
         }
@@ -127,6 +128,40 @@ int enough_toppings(Customer cust_i)
     }
     return 1;
 
+}
+
+int enough_order_toppings(Icecream ic_ordered,Customer cust_i,int idx)
+{
+    customer[cust_i.index-1].order[idx].entered_new_func = 1;
+    for (int i = 0; i < ic_ordered.num_tops; i++)
+    {
+        for (int j = 0; j < T; j++)
+        {
+            if (strcmp(ic_ordered.with_topping[i].t_type, topping[j].t_type) == 0)
+            {
+                used_topping[j]++;
+            }
+        }
+    }
+
+    for (int i = 0; i < T; i++)
+    {
+        if (used_topping[i] > topping[i].q_t)
+        {
+            for(int p=0;p<T;p++)
+            {
+                used_topping[p]=0;
+            }
+            return 0;
+        }
+    }
+
+    for(int i=0;i<T;i++)
+    {
+        topping[i].q_t = topping[i].q_t - used_topping[i];
+        used_topping[i]=0;
+    }
+    return 1;
 }
 
 int prep_time(Icecream icecream_ordered)
@@ -190,7 +225,7 @@ void *customer_func(void *arg)
         {
             for(int j=0;j<N;j++)
             {
-                if(machine[j].occupied==0 && curr_time >= machine[j].tm_start && curr_time < machine[j].tm_stop) // PROBLEM WHEN ONE MACHINE IS CLOSING BUT SECOND MACHINE CAN OPEN
+                if(machine[j].occupied==0 && curr_time >= machine[j].tm_start && curr_time < machine[j].tm_stop && curr_time+prep_time(customer[cust_inthread->index-1].order[i])<=machine[j].tm_stop) // PROBLEM WHEN ONE MACHINE IS CLOSING BUT SECOND MACHINE CAN OPEN
                 {
                     // curr_time+prep_time(customer[cust_inthread->index-1].order[i])<=machine[i].tm_stop
                     sem_post(&ord_exist[j]);
@@ -277,7 +312,7 @@ void *machine_func(void *arg)
             for (int j = 0; j < customer[i].num_ic; j++)
             {
                 pthread_mutex_lock(&print_mutex);
-                if(customer[i].rejected == 1 || (customer[i].entered_func==0 && enough_toppings(customer[i]) == 0) || all_stopped==1)
+                if(customer[i].rejected == 1 || (customer[i].order[j].entered_new_func==0 && enough_order_toppings(customer[i].order[j],customer[i],j) == 0) || all_stopped==1)
                 {
                     customer[i].rejected = 1;
                     sem_post(&customer_out[i]);
@@ -384,6 +419,7 @@ int main()
             }
             customer[idx].order[j].being_prepared = 0;
             customer[idx].order[j].is_served = 0;
+            customer[idx].order[j].entered_new_func = 0;
         }
         customer[idx].has_arrived = 0;
         customer[idx].rejected = 0;
