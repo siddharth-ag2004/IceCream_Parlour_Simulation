@@ -188,11 +188,12 @@ void *customer_func(void *arg)
     {
         for (int i = 0; i < cust_inthread->num_ic; i++)
         {
-            for(int i=0;i<N;i++)
+            for(int j=0;j<N;j++)
             {
-                if(machine[i].occupied==0 && curr_time >= machine[i].tm_start && curr_time < machine[i].tm_stop) // PROBLEM WHEN ONE MACHINE IS CLOSING BUT SECOND MACHINE CAN OPEN
+                if(machine[j].occupied==0 && curr_time >= machine[j].tm_start && curr_time < machine[j].tm_stop) // PROBLEM WHEN ONE MACHINE IS CLOSING BUT SECOND MACHINE CAN OPEN
                 {
-                    sem_post(&ord_exist[i]);
+                    // curr_time+prep_time(customer[cust_inthread->index-1].order[i])<=machine[i].tm_stop
+                    sem_post(&ord_exist[j]);
                     loop_break_flag=1;
                 }   
             }
@@ -314,7 +315,19 @@ void *machine_func(void *arg)
                 machine[machine_index].occupied = 0;
                 pthread_mutex_unlock(&print_mutex);
                 //Customer Leaves If All Icecreams Are Served
-                if(j==customer[i].num_ic-1)
+                // if(j==customer[i].num_ic-1)
+                // {
+                //     sem_post(&customer_out[i]);
+                // }
+                int temp_sum=0;
+                for(int k=0;k<customer[i].num_ic;k++)
+                {
+                    if(customer[i].order[k].is_served==1)
+                    {
+                        temp_sum++;
+                    }
+                }
+                if(temp_sum==customer[i].num_ic)
                 {
                     sem_post(&customer_out[i]);
                 }
