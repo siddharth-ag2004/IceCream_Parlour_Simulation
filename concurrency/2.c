@@ -90,6 +90,8 @@ int flag_arr[MAX_LEN]={0};
 int total_customers_left=0;
 int curr_capacity=0;
 int all_stopped=0;
+int topping_flag=0;
+int topping_over=0;
 //ASSUMPTION: EACH TOPPING IS ONLY USED ONCE IN ONE ORDER(EXAMPLE CHOCOLATE CARAMEL CARAMEL IS NOT VALID)
 
 int enough_toppings(Customer cust_i)
@@ -123,7 +125,11 @@ int enough_toppings(Customer cust_i)
 
     for(int i=0;i<T;i++)
     {
-        topping[i].q_t = topping[i].q_t - used_topping[i];
+        // topping[i].q_t = topping[i].q_t - used_topping[i];
+        // if(topping[i].q_t == 0)
+        // {
+        //     topping_over--;
+        // }
         used_topping[i]=0;
     }
     return 1;
@@ -159,6 +165,10 @@ int enough_order_toppings(Icecream ic_ordered,Customer cust_i,int idx)
     for(int i=0;i<T;i++)
     {
         topping[i].q_t = topping[i].q_t - used_topping[i];
+        if(topping[i].q_t == 0)
+        {
+            topping_over--;
+        }
         used_topping[i]=0;
     }
     return 1;
@@ -312,7 +322,7 @@ void *machine_func(void *arg)
             for (int j = 0; j < customer[i].num_ic; j++)
             {
                 pthread_mutex_lock(&print_mutex);
-                if(customer[i].rejected == 1 || (customer[i].order[j].entered_new_func==0 && enough_order_toppings(customer[i].order[j],customer[i],j) == 0) || all_stopped==1)
+                if(customer[i].rejected == 1 || (customer[i].entered_func==0 && enough_toppings(customer[i]) == 0) || (customer[i].order[j].entered_new_func==0 && enough_order_toppings(customer[i].order[j],customer[i],j) == 0) || all_stopped==1)
                 {
                     customer[i].rejected = 1;
                     sem_post(&customer_out[i]);
@@ -321,7 +331,7 @@ void *machine_func(void *arg)
                 }
                 else
                 {
-                    if (customer[i].order[j].being_prepared == 0 && prep_time(customer[i].order[j]) + curr_time < machine[machine_index].tm_stop)
+                    if (customer[i].order[j].being_prepared == 0 && prep_time(customer[i].order[j]) + curr_time <= machine[machine_index].tm_stop)
                     {
                         // printf("order recvd\n");
                     }
@@ -398,6 +408,11 @@ int main()
         {
             topping[i].q_t = 10000;
         }
+        else
+        {
+            topping_flag=1;
+            topping_over++;
+        }
         used_topping[i] = 0;
         topping[i].topping_index = i;
     }
@@ -468,8 +483,13 @@ int main()
     }
 
     // while (curr_time < 1000)
-    while(machines_stopped < N || total_customers_left < cust_num)
+    while((machines_stopped < N || total_customers_left < cust_num))
     {
+        // printf("tops : flag = %d over = %d\n",topping_flag,topping_over);
+        // if(topping_flag == 1 && topping_over==0)
+        // {
+        //     break;
+        // }
         for (int i = 0; i < N; i++)
         {
             if (curr_time == machine[i].tm_start)
