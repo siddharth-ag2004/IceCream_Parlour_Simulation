@@ -44,6 +44,8 @@ typedef struct Icecream
     int being_prepared;
     int is_served;
     int entered_new_func;
+    int serving_bar;
+    int delay1_flag;
 } Icecream;
 
 typedef struct Customer
@@ -67,6 +69,7 @@ typedef struct ThreadArg
 sem_t customer_in[MAX_LEN];
 sem_t customer_out[MAX_LEN];
 sem_t delay_customer[MAX_LEN];
+sem_t delay1_barista[MAX_LEN];
 Customer customer[MAX_LEN];
 int order_flag=0;
 Machine machine[MAX_LEN];
@@ -219,6 +222,13 @@ void *customer_func(void *arg)
         return NULL;
     }
 
+    if(enough_toppings(*cust_inthread) == 0)
+    {
+        total_customers_left++;
+        printf(RED "Customer %d was not serviced due to unavailability of toppings\n" RESET, cust_inthread->index);
+        return NULL;
+    }
+
 
     curr_capacity++; 
     customer[cust_inthread->index - 1].has_arrived = 1;
@@ -231,7 +241,7 @@ void *customer_func(void *arg)
         return NULL;
     }
 
-    sem_wait(&delay_customer[cust_inthread->index - 1]);
+    // sem_wait(&delay_customer[cust_inthread->index - 1]);
 
     int loop_break_flag=0;
     while(customer[cust_inthread->index-1].rejected == 0 && all_stopped==0 && customer[cust_inthread->index-1].order_fulfilled < cust_inthread->num_ic)        //CHECK WHEN TO BREAK LOOOP
@@ -337,7 +347,7 @@ void *machine_func(void *arg)
                 }
                 else
                 {
-                    if (customer[i].order[j].being_prepared == 0 && prep_time(customer[i].order[j]) + curr_time <= machine[machine_index].tm_stop)
+                    if (customer[i].order[j].being_prepared == 0 && prep_time(customer[i].order[j]) + curr_time+ (curr_time!=machine[machine_index].tm_start) < machine[machine_index].tm_stop)
                     {
                         // printf("order recvd\n");
                     }
@@ -352,6 +362,17 @@ void *machine_func(void *arg)
                 // order_flag--;
                 customer[i].order[j].being_prepared = 1;
                 customer[i].order_fulfilled++;
+                customer[i].order[j].serving_bar = machine_index;
+
+                if(customer[i].order[j].delay1_flag==0)
+                {
+                    customer[i].order[j].delay1_flag=1;
+                }
+
+                if(curr_time!=machine[machine_index].tm_start || (curr_time==machine[machine_index].tm_start) && curr_time == customer[i].t_arr)
+                    sem_wait(&delay1_barista[machine_index]);  
+
+                customer[i].order[j].delay1_flag=0;
                 printf(CYAN "Machine %d starts preparing ice cream %d of customer %d at %d second(s)\n" RESET, machine_index + 1, j + 1, i + 1, curr_time);
                 machine[machine_index].occupied = 1;
                 machine_freenext[machine_index] = curr_time + prep_time(customer[i].order[j]);
@@ -441,6 +462,8 @@ void TakeInput()
             customer[idx].order[j].being_prepared = 0;
             customer[idx].order[j].is_served = 0;
             customer[idx].order[j].entered_new_func = 0;
+            customer[idx].order[j].serving_bar = -1;
+            customer[idx].order[j].delay1_flag = 0;
         }
         customer[idx].has_arrived = 0;
         customer[idx].rejected = 0;
@@ -494,6 +517,7 @@ int main()
         sem_init(&machine_stop[i], 0, 0);
         sem_init(&machine_sleep[i], 0, 0);
         sem_init(&ord_exist[i], 0, 0);
+        sem_init(&delay1_barista[i], 0, 0);
         machine_freenext[i] = -1;
     }
     for (int i = 0; i < cust_num; i++)
@@ -556,11 +580,21 @@ int main()
                 sem_post(&customer_in[i]);
             }
         }
+        // for(int i=0;i<cust_num;i++)
+        // {
+        //     if(curr_time == customer[i].t_arr + 1)
+        //     {
+        //         sem_post(&delay_customer[i]);
+        //     }
+        // }
         for(int i=0;i<cust_num;i++)
         {
-            if(curr_time == customer[i].t_arr + 1)
+            for(int j=0;j<customer[i].num_ic;j++)
             {
-                sem_post(&delay_customer[i]);
+                if(customer[i].order[j].delay1_flag==1)
+                {
+                    sem_post(&delay1_barista[customer[i].order[j].serving_bar]);
+                }
             }
         }
         for(int i=0;i<N;i++)
