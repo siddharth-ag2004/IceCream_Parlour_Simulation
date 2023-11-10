@@ -85,6 +85,7 @@ sem_t order_exists;
 sem_t customer_exists;
 pthread_mutex_t print_mutex;
 pthread_mutex_t loop_mutex;
+pthread_mutex_t topping_mutex;
 int machines_stopped = 0;
 int flag_arr[MAX_LEN]={0};
 int total_customers_left=0;
@@ -92,6 +93,7 @@ int curr_capacity=0;
 int all_stopped=0;
 int topping_flag=0;
 int topping_over=0;
+int last_time_left=-1;
 //ASSUMPTION: EACH TOPPING IS ONLY USED ONCE IN ONE ORDER(EXAMPLE CHOCOLATE CARAMEL CARAMEL IS NOT VALID)
 
 int enough_toppings(Customer cust_i)
@@ -138,6 +140,7 @@ int enough_toppings(Customer cust_i)
 
 int enough_order_toppings(Icecream ic_ordered,Customer cust_i,int idx)
 {
+    pthread_mutex_lock(&topping_mutex);
     customer[cust_i.index-1].order[idx].entered_new_func = 1;
     for (int i = 0; i < ic_ordered.num_tops; i++)
     {
@@ -158,6 +161,7 @@ int enough_order_toppings(Icecream ic_ordered,Customer cust_i,int idx)
             {
                 used_topping[p]=0;
             }
+            pthread_mutex_unlock(&topping_mutex);
             return 0;
         }
     }
@@ -171,6 +175,7 @@ int enough_order_toppings(Icecream ic_ordered,Customer cust_i,int idx)
         }
         used_topping[i]=0;
     }
+    pthread_mutex_unlock(&topping_mutex);
     return 1;
 }
 
@@ -207,7 +212,7 @@ void *customer_func(void *arg)
         printf("\n" RESET);
     }
     // customer[cust_inthread] has_arrived = 1;
-    if(curr_capacity==K)
+    if(curr_capacity==K || (last_time_left==curr_time && curr_capacity==K-1))
     {
         total_customers_left++;
         printf(RED "Customer %d was not serviced due to shop being full\n" RESET, cust_inthread->index);
@@ -215,7 +220,7 @@ void *customer_func(void *arg)
     }
 
 
-    curr_capacity++;
+    curr_capacity++; 
     customer[cust_inthread->index - 1].has_arrived = 1;
     order_flag+=cust_inthread->num_ic;
     // sem_post(&customer_exists);
@@ -257,6 +262,7 @@ void *customer_func(void *arg)
     customer[cust_inthread->index - 1].has_left = 1;
     // pthread_mutex_lock(&print_mutex);
     curr_capacity--;
+    last_time_left = curr_time;
     if(all_stopped==1)
     {
         // total_customers_left++;
@@ -387,7 +393,7 @@ void *machine_func(void *arg)
     }
 }
 
-int main()
+void TakeInput()
 {
     scanf("%d %d %d %d", &N, &K, &F, &T);
     int num_toppings;
@@ -443,6 +449,43 @@ int main()
         customer[idx].order_fulfilled = 0;
     }
 
+}
+
+// void TakeNewInput()
+// {
+//    scanf("%d %d %d %d", &N, &K, &F, &T);
+//     int num_toppings;
+//     for (int i = 0; i < N; i++)
+//     {
+//         scanf("%d %d", &machine[i].tm_start, &machine[i].tm_stop);
+//         machine[i].stopped = 0;
+//         machine[i].occupied = 0;
+//     }
+//     for (int i = 0; i < F; i++)
+//     {
+//         scanf("%s %d", flavour[i].i_type, &flavour[i].ttp);
+//     }
+//     for (int i = 0; i < T; i++)
+//     {
+//         scanf("%s %d", topping[i].t_type, &topping[i].q_t);
+//         if(topping[i].q_t == -1)
+//         {
+//             topping[i].q_t = 10000;
+//         }
+//         else
+//         {
+//             topping_flag=1;
+//             topping_over++;
+//         }
+//         used_topping[i] = 0;
+//         topping[i].topping_index = i;
+//     }
+
+// }
+
+int main()
+{
+    TakeInput();
     sem_init(&customer_exists, 0, 0);
     sem_init(&order_exists, 0, 0);
     for (int i = 0; i < N; i++)
@@ -462,6 +505,7 @@ int main()
 
     pthread_mutex_init(&print_mutex, NULL);
     pthread_mutex_init(&loop_mutex, NULL);
+    pthread_mutex_init(&topping_mutex, NULL);
 
     pthread_t machine_thread[N];
     pthread_t cust_thread[cust_num];
