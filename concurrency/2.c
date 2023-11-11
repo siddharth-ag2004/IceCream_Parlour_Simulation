@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #define MAX_LEN 500
 
@@ -90,6 +91,7 @@ sem_t customer_exists;
 pthread_mutex_t print_mutex;
 pthread_mutex_t loop_mutex;
 pthread_mutex_t topping_mutex;
+pthread_mutex_t capacity_lock;
 int machines_stopped = 0;
 int flag_arr[MAX_LEN]={0};
 int total_customers_left=0;
@@ -204,6 +206,7 @@ void *customer_func(void *arg)
     sem_wait(&customer_in[cust_inthread->index - 1]);
 
     // pthread_mutex_lock(&print_mutex);        //REMOVE THIS LOCK  
+    pthread_mutex_lock(&capacity_lock);
     printf(WHITE "Customer %d arrives at %d second(s)\n" RESET, cust_inthread->index, cust_inthread->t_arr);
     printf(YELLOW "Customer %d orders %d ice cream(s)\n" RESET, cust_inthread->index, cust_inthread->num_ic);
     for (int i = 0; i < cust_inthread->num_ic; i++)
@@ -220,6 +223,7 @@ void *customer_func(void *arg)
     {
         total_customers_left++;
         printf(RED "Customer %d was not serviced due to shop being full\n" RESET, cust_inthread->index);
+        pthread_mutex_unlock(&capacity_lock);
         return NULL;
     }
 
@@ -227,11 +231,15 @@ void *customer_func(void *arg)
     {
         total_customers_left++;
         printf(RED "Customer %d was not serviced due to unavailability of toppings\n" RESET, cust_inthread->index);
+        pthread_mutex_unlock(&capacity_lock);
         return NULL;
     }
 
 
     curr_capacity++; 
+
+    pthread_mutex_unlock(&capacity_lock);
+
     customer[cust_inthread->index - 1].has_arrived = 1;
     order_flag+=cust_inthread->num_ic;
     // sem_post(&customer_exists);
@@ -620,6 +628,7 @@ int main()
     pthread_mutex_init(&print_mutex, NULL);
     pthread_mutex_init(&loop_mutex, NULL);
     pthread_mutex_init(&topping_mutex, NULL);
+    pthread_mutex_init(&capacity_lock, NULL);
 
     pthread_t machine_thread[N];
     pthread_t cust_thread[cust_num];
@@ -644,9 +653,11 @@ int main()
     while((machines_stopped < N || total_customers_left < cust_num))
     {
         // printf("tops : flag = %d over = %d\n",topping_flag,topping_over);
+        //comment out below line if implementation of parlour closing is required
         // if(topping_flag == 1 && topping_over==0)
         // {
-        //     break;
+        //     printf("Parlour closed due to unavailibility of toppings.\n");
+        //     exit(1);
         // }
         for (int i = 0; i < N; i++)
         {
