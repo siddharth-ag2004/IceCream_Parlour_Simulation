@@ -3,7 +3,8 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
-// #include <color.h>
+
+#define MAX_LEN 500
 
 #define YELLOW "\033[1;33m"
 #define WHITE "\e[0;37m"
@@ -43,12 +44,12 @@ typedef struct ThreadArg {
 sem_t barista;
 sem_t customer_exists;
 // sem_t delay1_bar;
-sem_t customer_in[500];
-sem_t customer_out[500];
-sem_t barista_sleep[500];
-sem_t delay1_bar[500];
-int barista_arr[500];
-int temp_currtime[500];
+sem_t customer_in[MAX_LEN];
+sem_t customer_out[MAX_LEN];
+sem_t barista_sleep[MAX_LEN];
+sem_t delay1_bar[MAX_LEN];
+int barista_arr[MAX_LEN];
+int temp_currtime[MAX_LEN];
 int barista_busy=0;
 int customer_left=0;    
 int avg_wtime=0;
@@ -68,8 +69,8 @@ int prep_time(int K, const char *ctype, Coffee coffee[K]) {
 void* customer_func(void* arg)
 {
     Customer* customer = (Customer*)arg;
-    int B = 0;
-    int N = 0;
+    // int B = 0;
+    // int N = 0;
     
     sem_wait(&customer_in[customer->index-1]);
 
