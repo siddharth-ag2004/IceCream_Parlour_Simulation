@@ -126,6 +126,7 @@ struct proc
   int pbs_stime;
   int pbs_wtime;
   int pbs_dp;
+  int pbs_schedule_count;
   #endif
 
 };

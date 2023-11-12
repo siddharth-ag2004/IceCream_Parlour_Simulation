@@ -157,6 +157,7 @@ found:
   p->pbs_rtime = 0;
   p->pbs_stime = 0;
   p->pbs_wtime = 0;
+  p->pbs_schedule_count=0;
   #endif
   return p;
 }
@@ -464,21 +465,48 @@ int max(int a, int b)
   return b;
 }
 
+int min(int a, int b)
+{
+  if (a < b)
+    return a;
+  return b;
+}
 #ifdef PBS
 
-int cmpfunc(uint64* min_dp, struct proc *p)
+int cmpfunc(uint64* min_dp, struct proc *p,int st_time,int num_scheduled)
 {
   // int I = max(3 * R * Time - STime - WTime * R * Time + WTime + STime + 1 * 50, 0);
-  int rbi = max(( 3*p->pbs_rtime - p->pbs_stime - p->pbs_wtime )*50/(p->pbs_rtime + p->pbs_stime + p->pbs_wtime), 0);
+  int rbi = max(( 3*p->pbs_rtime - p->pbs_stime - p->pbs_wtime )*50/(p->pbs_rtime + p->pbs_stime + p->pbs_wtime+1), 0);
+  // printf("##%d\n",rbi);
   if(*min_dp == -1)
   {
-    *min_dp = rbi;
+    // printf("first \n");
+    *min_dp = min(p->pbs_sp+rbi,100);
     return 1;
   }
-  if(rbi < *min_dp)
+  if(min(p->pbs_sp+rbi,100) < *min_dp)
   {
-    *min_dp = rbi;
+    // printf("second\n");
+    *min_dp = min(p->pbs_sp+rbi,100);
     return 1;
+  }
+  if(min(p->pbs_sp+rbi,100) == *min_dp)
+  {
+    if(p->pbs_schedule_count < num_scheduled)
+    {
+      // printf("here\n");
+      *min_dp = min(p->pbs_sp+rbi,100);
+      return 1;
+    }
+    if(p->pbs_schedule_count == num_scheduled)
+    {
+      if(p->ctime < st_time)
+      {
+        // printf("forth\n");
+        *min_dp = min(p->pbs_sp+rbi,100);
+        return 1;
+      }
+    }
   }
   return 0;
 } 
@@ -510,12 +538,20 @@ void scheduler(void)
     for (p = proc; p < &proc[NPROC]; p++)
     {
       acquire(&p->lock);
-      if (p->state == RUNNABLE && cmpfunc(&min_dp, p) == 1)
+      if (p->state == RUNNABLE && (!prev_proc || cmpfunc(&min_dp, p,prev_proc->ctime,prev_proc->pbs_schedule_count)))
       {
+        if(min_dp==-1)
+        {
+          min_dp = min(p->pbs_sp,100);
+        }
         prev_proc = pbs_proc;
         pbs_proc = p;
+        // printf("****%d\n",pbs_proc->pid);
         if(prev_proc!=0)
-          release(&pbs_proc->lock);
+          release(&prev_proc->lock);
+
+        prev_proc = pbs_proc;
+        
       }
       else
         release(&p->lock);
@@ -525,6 +561,9 @@ void scheduler(void)
     {
       pbs_proc->state = RUNNING;
       c->proc = pbs_proc;
+      pbs_proc->pbs_schedule_count++;
+      // pbs_proc->pbs_stime=0;
+      pbs_proc->pbs_rtime=0;
       swtch(&c->context, &pbs_proc->context);
       c->proc = 0;
       release(&pbs_proc->lock);
@@ -764,7 +803,10 @@ void procdump(void)
       state = states[p->state];
     else
       state = "???";
-    printf("%d %s %s", p->pid, state, p->name);
+    printf("%d %s %s ", p->pid, state, p->name);
+    #ifdef PBS
+    printf("Static pri: %d, Runtime: %d, Waittime: %d, Sleep time: %d Scheduled Count: %d CTIME: %d", p->pbs_sp, p->pbs_rtime, p->pbs_wtime, p->pbs_stime,p->pbs_schedule_count,p->ctime);
+    #endif
     printf("\n");
   }
 }
@@ -827,13 +869,17 @@ int waitx(uint64 addr, uint *wtime, uint *rtime)
 void update_time()
 {
   struct proc *p;
+  procdump();
   for (p = proc; p < &proc[NPROC]; p++)
   {
     acquire(&p->lock);
+    // procdump();
     if (p->state == RUNNING)
     {
       #ifdef PBS
       p->pbs_rtime++;
+      // if(p->pbs_rtime==1)
+        // p->pbs_stime=0;
       #endif
       p->rtime++;
     }
