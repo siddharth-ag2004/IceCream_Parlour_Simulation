@@ -881,7 +881,7 @@ void update_time()
       #ifdef PBS
       p->pbs_rtime++;
       // if(p->pbs_rtime==1)
-        // p->pbs_stime=0;
+      p->pbs_stime=0;
       #endif
       p->rtime++;
     }
