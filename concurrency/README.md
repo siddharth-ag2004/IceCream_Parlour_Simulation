@@ -1,7 +1,10 @@
 # 1. Cafe Sim #
 If the cafe had infinite baristas, no customer would have to wait for more than 1 second to have thier order be taken, as there would always be some barista who is free. Thus average waiting time would be 1.
 
-## Report ##
+For wasted coffee, I maintained a variable coffee_wasted which I was incrementing whenever a customer left without being served. Thus, the total wasted coffee would be coffee_wasted.
+
+## Implementation ##
+
 For the Cafe Sim, I have created B barista threads (each simulating a barista), each corresponding to  and N customer threads (each simulating a customer).
 
 I have a variable curr_time which simulates real world clock.
@@ -35,7 +38,7 @@ print_mutex lock is applied around the print statements to ensure that the outpu
 # 2. Ice Cream Parlour Sim #
 
 
-## 3. Report ##
+## Implementation ##
 
 For the Cafe Sim, I have created B barista threads (each simulating a barista), each corresponding to  and N customer threads (each simulating a customer).
 
