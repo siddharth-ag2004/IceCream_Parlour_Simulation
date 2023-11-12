@@ -142,6 +142,7 @@ UPROGS=\
 	$U/_getreadcount\
 	$U/_test_1\
 	$U/_test_2\
+	$U/_setpriority\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

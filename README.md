@@ -13,3 +13,9 @@
 
 - Answer all the theoretical/analysis-based questions (for PBS scheduler and the concurrency questions) in a single `md `file.
 - You may delete these instructions and add your report before submitting. 
+
+
+## NOTE
+
+Concurrency Report in `concurrency/README.md`
+PBS Report in `initial_xv6/README.md`

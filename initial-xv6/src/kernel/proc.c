@@ -158,6 +158,7 @@ found:
   p->pbs_stime = 0;
   p->pbs_wtime = 0;
   p->pbs_schedule_count=0;
+  p->pbs_rbi = 25;
   #endif
   return p;
 }
@@ -477,6 +478,7 @@ int cmpfunc(uint64* min_dp, struct proc *p,int st_time,int num_scheduled)
 {
   // int I = max(3 * R * Time - STime - WTime * R * Time + WTime + STime + 1 * 50, 0);
   int rbi = max(( 3*p->pbs_rtime - p->pbs_stime - p->pbs_wtime )*50/(p->pbs_rtime + p->pbs_stime + p->pbs_wtime+1), 0);
+  p->pbs_rbi = rbi;
   // printf("##%d\n",rbi);
   if(*min_dp == -1)
   {
@@ -869,7 +871,7 @@ int waitx(uint64 addr, uint *wtime, uint *rtime)
 void update_time()
 {
   struct proc *p;
-  procdump();
+  // procdump();
   for (p = proc; p < &proc[NPROC]; p++)
   {
     acquire(&p->lock);

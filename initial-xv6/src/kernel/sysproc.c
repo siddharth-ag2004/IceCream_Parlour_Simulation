@@ -108,3 +108,35 @@ sys_waitx(void)
     return -1;
   return ret;
 }
+
+int set_priority(int pid, int new_priority)
+{
+  struct proc *p;
+  int old_priority = -1;
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    acquire(&p->lock);
+    if (p->pid == pid)
+    {
+      #ifdef PBS
+      old_priority = p->pbs_sp;
+      p->pbs_sp = new_priority;
+      p->pbs_rbi=25;
+      #endif
+      release(&p->lock);
+      return old_priority;
+    }
+    release(&p->lock);
+  }
+  return old_priority;
+}
+
+
+uint64
+sys_set_priority(void)
+{
+  int priority,pid;
+  argint(0, &priority);
+  argint(1, &pid);
+  return set_priority(priority,pid);
+}

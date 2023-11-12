@@ -75,11 +75,23 @@ Once a machine has finished preparing an order, it checks if all orders have bee
 
 
 
-<!-- ### Minimizing Incomplete Orders: Describe your approach to redesign the simulation to minimize incomplete orders, given that incomplete orders can impact the parlor’s reputation. Note that the parlor’s reputation is unaffected if orders are instantly rejected due to topping shortages. ###
+### Minimizing Incomplete Orders: Describe your approach to redesign the simulation to minimize incomplete orders, given that incomplete orders can impact the parlor’s reputation. Note that the parlor’s reputation is unaffected if orders are instantly rejected due to topping shortages. ###
 
+In my impleqmentation, I have ensured that a customer is not served if the toppings are not available for the entire order of the customer. However, I have not ensured that a customer is not served if the toppings are not available for a part of the order of the customer.
 
+I would have a variable storing the total time all machines can run for beginning from the curr_time called total_time.
+To ensure that a customer is not served if the toppings are not available for a part of the order of the customer, I would reserve the toppings for the entire order for that customer and precompute the total preparing time of the entire order. If the preparing time of the entire order is less than total_time, then the customer is served and his prep_time is subtracted from total_time, else the customer is not served. Similiarly for allother customers. 
+Although this might lead to more customers being rejected, they would be rejected immediately and so parlor's reputation would not be affected.
 
 
 ### Ingredient Replenishment: Assuming ingredients can be replenished by contacting the nearest supplier, outline how you would adjust the parlour order acceptance/rejection process based on ingredient availability. ### 
 
-### Unserviced Orders: Suggest ways by which we can avoid/minimise the number of unserviced orders or customers having to wait until the parlor closes. ###  -->
+Lets say the nearest supplier takes t_supply time to replenish the ingredients.
+If a customer makes an order consisting of toppings which are not available , I would sem_wait (out the customer to sleep) for t_suply time, after which he would be woken up and allowed to place an order. In the duration of the customer sleeping , if annother customer enters the shop and makes an order, but due to the sleeping customer, the capacity of the shop is full, I would ask the wake the sleeping customer thread and ask him to leave without being served. In the case , the capacity is not full, no change would be made to the sleeping customer thread. This is an optimal strategy considering full capacity as, in the case when the new customer's order's only has toppings which are available, the customer would be served and we would have same number of served customers and in case , when the new customer's order could also not be fulfilled due to shortage of toppings, the previous sleeping customer thread would exit and a new thread would sleep in its place. Thus, we would have same number of unserved customers. Thus, the parlour's reputation would not be affected.
+
+
+### Unserviced Orders: Suggest ways by which we can avoid/minimise the number of unserviced orders or customers having to wait until the parlor closes. ### 
+
+To minimise the number of unserviced orders I would remove the condition where all toppings of the customer's entire order must be available, instead I wold only check for a particular order. This would reduce the number of unserviced customers and they would still get their partial order. They would wait till all machines close, however, they can leave with those completed orders, instead of nothing.
+For the problem of customers waiting till end of parlour closing, my implementation in the first question of total time would reduce the number customers waiting till end of parlour closing by decrementing total time by only the minimum preparation time order of the customer. So, if the minimum preparation time order of a customer can also not be fulfilled due to all machines closing later, they will leave without being served immediately and not have to wait till the parlour closes(all machines stop).
+
